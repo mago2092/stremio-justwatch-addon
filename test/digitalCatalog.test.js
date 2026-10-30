@@ -65,6 +65,24 @@ describe("digital catalogue", () => {
     assert.equal(firstDigitalAvailability(node, now), null);
   });
 
+  test("ignores free and ad-supported offers, even when active", () => {
+    const now = Date.parse("2026-10-30T12:00:00Z");
+    const freeOnly = {
+      offers: [
+        { monetizationType: "FREE", availableFromTime: "2026-10-29T00:00:00Z" },
+        { monetizationType: "ADS", availableFromTime: "2026-10-29T00:00:00Z" },
+      ],
+    };
+    assert.equal(firstDigitalAvailability(freeOnly, now), null);
+    const mixed = {
+      offers: [
+        { monetizationType: "ADS", availableFromTime: "2026-10-29T00:00:00Z" },
+        { monetizationType: "BUY", availableFromTime: "2026-10-20T00:00:00Z" },
+      ],
+    };
+    assert.equal(firstDigitalAvailability(mixed, now), Date.parse("2026-10-20T00:00:00Z"));
+  });
+
   test("uses the original four-hour lazy refresh window", () => {
     const now = Date.parse("2026-10-30T12:00:00Z");
     assert.equal(snapshotIsFresh({ generatedAt: "2026-10-30T08:01:00Z" }, now), true);

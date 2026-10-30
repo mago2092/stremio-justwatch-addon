@@ -7,7 +7,9 @@ const { TTL_S } = require("../ttl");
 
 const SNAPSHOT_KEY = "digital-catalog:IT:movies:v1";
 const PAGE_SIZE = 50;
-const DIGITAL_TYPES = new Set(["FLATRATE", "RENT", "BUY", "FREE", "ADS"]);
+// Only subscription (FLATRATE) and paid (RENT, BUY) offers. Free and
+// ad-supported offers are deliberately excluded from this catalogue.
+const DIGITAL_TYPES = new Set(["FLATRATE", "RENT", "BUY"]);
 
 function maxPages() {
   const configured = Number.parseInt(process.env.DIGITAL_CATALOG_SCAN_PAGES, 10);

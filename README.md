@@ -6,7 +6,7 @@ Discover where to watch movies and series on your favourite streaming platforms,
 
 ### Nuovi film in digitale (Italia)
 
-Every manifest configured for **Italy** exposes the movie catalog **Nuovi film in digitale**. It is a single, Italy-only snapshot for Nuvio/Stremio, covering active `FLATRATE`, `RENT`, `BUY`, `FREE`, and `ADS` offers.
+Every manifest configured for **Italy** exposes the movie catalog **Nuovi film in digitale**. It is a single, Italy-only snapshot for Nuvio/Stremio, covering only active subscription (`FLATRATE`) and paid (`RENT`, `BUY`) offers. Free (`FREE`) and ad-supported (`ADS`) offers are excluded.
 
 The refresh ranks films only by JustWatch's offer-level `availableFromTime` field. `originalReleaseDate` is not used: it is an original/theatrical release date and is not a safe replacement for a digital-offer date. Films with no active, dated qualifying offer are left out rather than guessed.
 

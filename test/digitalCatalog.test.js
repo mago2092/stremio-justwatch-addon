@@ -34,10 +34,13 @@ const {
   firstDigitalAvailability,
   snapshotIsFresh,
   serveDigitalCatalog,
+  digitalArrival,
+  _resetRefreshStateForTests,
 } = require("../src/infra/digitalCatalog");
+const { summarizeReleases } = require("../src/infra/tmdbReleases");
 
 describe("digital catalogue", () => {
-  beforeEach(() => { snapshot = null; });
+  beforeEach(() => { snapshot = null; _resetRefreshStateForTests(); });
 
   test("uses the earliest active digital offer date, never the theatrical date", () => {
     const now = Date.parse("2026-10-30T12:00:00Z");
@@ -100,6 +103,59 @@ describe("digital catalogue", () => {
       ],
     };
     assert.equal(firstDigitalAvailability(dubbedLater, now), Date.parse("2026-10-15T00:00:00Z"));
+  });
+
+  test("reads Italian cinema and digital dates from TMDb, ignoring premieres and other countries", () => {
+    const payload = {
+      results: [
+        { iso_3166_1: "US", release_dates: [{ type: 3, release_date: "2026-01-01T00:00:00.000Z" }] },
+        {
+          iso_3166_1: "IT",
+          release_dates: [
+            { type: 1, release_date: "2025-09-01T00:00:00.000Z" },
+            { type: 3, release_date: "2026-03-05T00:00:00.000Z" },
+            { type: 2, release_date: "2026-03-01T00:00:00.000Z" },
+            { type: 4, release_date: "2026-06-10T00:00:00.000Z" },
+          ],
+        },
+      ],
+    };
+    assert.deepEqual(summarizeReleases(payload, "IT"), {
+      theatrical: Date.parse("2026-03-01T00:00:00.000Z"),
+      digital: Date.parse("2026-06-10T00:00:00.000Z"),
+    });
+    assert.deepEqual(summarizeReleases({ results: [] }, "IT"), { theatrical: null, digital: null });
+  });
+
+  test("keeps only films that played in Italian cinemas", () => {
+    const now = Date.parse("2026-10-30T12:00:00Z");
+    const jwDigital = Date.parse("2026-10-01T00:00:00Z");
+    // Streaming-only: no Italian cinema release on TMDb.
+    assert.equal(digitalArrival({ jwDigital, releases: { theatrical: null, digital: null }, now }), null);
+    // Unknown (TMDb lookup failed): left out rather than guessed.
+    assert.equal(digitalArrival({ jwDigital, releases: null, now }), null);
+    // Cinema release in the future: not yet a cinema-to-digital film.
+    assert.equal(digitalArrival({ jwDigital, releases: { theatrical: Date.parse("2026-12-01T00:00:00Z"), digital: null }, now }), null);
+    // Played in cinemas, then arrived in digital.
+    assert.equal(
+      digitalArrival({ jwDigital, releases: { theatrical: Date.parse("2026-08-01T00:00:00Z"), digital: null }, now }),
+      jwDigital,
+    );
+  });
+
+  test("prefers TMDb's Italian digital date and distrusts digital dates before the cinema release", () => {
+    const now = Date.parse("2026-10-30T12:00:00Z");
+    const theatrical = Date.parse("2026-04-01T00:00:00Z");
+    // JustWatch listed it on the cinema date (pre-order); TMDb knows the real digital date.
+    assert.equal(
+      digitalArrival({ jwDigital: theatrical, releases: { theatrical, digital: Date.parse("2026-05-20T00:00:00Z") }, now }),
+      Date.parse("2026-05-20T00:00:00Z"),
+    );
+    // A digital offer weeks before the cinema release is not trusted.
+    assert.equal(
+      digitalArrival({ jwDigital: Date.parse("2026-02-01T00:00:00Z"), releases: { theatrical, digital: null }, now }),
+      null,
+    );
   });
 
   test("uses the original four-hour lazy refresh window", () => {

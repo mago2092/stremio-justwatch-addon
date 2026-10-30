@@ -8,6 +8,8 @@ Discover where to watch movies and series on your favourite streaming platforms,
 
 Every manifest configured for **Italy** exposes the movie catalog **Nuovi film in digitale**. It is a single, Italy-only snapshot for Nuvio/Stremio, covering only active subscription (`FLATRATE`) and paid (`RENT`, `BUY`) offers. Free (`FREE`) and ad-supported (`ADS`) offers are excluded. An offer counts only when JustWatch lists Italian (`it`) among its `audioLanguages`: Italian subtitles alone are not enough, and offers with no audio data are skipped.
 
+Only films that **played in Italian cinemas** are listed: each candidate is checked against TMDb's Italian release calendar (theatrical release types 2/3; festival premieres do not count). Streaming-only films are left out. The digital arrival date is TMDb's Italian digital date when available, otherwise the JustWatch offer date; a digital date earlier than the cinema release is not trusted and the film is skipped. `TMDB_API_KEY` is required for this catalogue (a free key from themoviedb.org/settings/api).
+
 The refresh ranks films only by JustWatch's offer-level `availableFromTime` field. `originalReleaseDate` is not used: it is an original/theatrical release date and is not a safe replacement for a digital-offer date. Films with no active, dated qualifying offer are left out rather than guessed.
 
 The newest successful snapshot is stored permanently in Upstash Redis and is the only data served to catalog requests. A refresh writes Redis only after the complete replacement has been built, so an upstream, mapping, or Redis failure leaves the last valid snapshot available.
@@ -21,7 +23,7 @@ UPSTASH_REDIS_REST_TOKEN=<token>
 DIGITAL_CATALOG_SCAN_PAGES=10
 ```
 
-Like the original catalogs, this one has no fixed-time scheduler. The first Nuvio/Stremio request after four hours refreshes the snapshot; requests inside that window receive the stored data. If the lazy refresh fails, the previous valid snapshot stays available.
+Like the original catalogs, this one has no fixed-time scheduler. The first Nuvio/Stremio request after four hours starts a background rebuild and is served the stored snapshot immediately; only the very first build (no snapshot yet) is awaited. A failed rebuild keeps the previous snapshot and is not retried for 10 minutes.
 
 - **Per-provider catalogs** — one catalog per selected platform (Netflix, Disney+, Prime Video, …), plus an opt-in **Global** catalog (Popular/Trending/New across every platform in your country, not just the ones you picked)
 - **Multi-country catalogs** — each catalog's id carries its own country + language, so a single install can serve several countries at once. Handy in front-ends like [AIOStreams](https://github.com/Viren070/AIOStreams) that let you mix catalogs from different addons/countries side by side

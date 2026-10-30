@@ -9,8 +9,9 @@ const tmdbReleases = require("./tmdbReleases");
 // Bump the version whenever the inclusion rules change, so a snapshot built
 // under the old rules is never served (v2: paid only + Italian audio;
 // v3: also requires an Italian cinema release on TMDb;
-// v4: minimum IMDb votes + Cinemeta-style posters).
-const SNAPSHOT_KEY = "digital-catalog:IT:movies:v4";
+// v4: minimum IMDb votes + Cinemeta-style posters;
+// v5: scan all 19 JustWatch pages).
+const SNAPSHOT_KEY = "digital-catalog:IT:movies:v5";
 const DAY_MS = 24 * 3600 * 1000;
 // After a failed refresh, wait before trying again instead of retrying on
 // every single catalogue request while JustWatch/TMDb are unhappy.
@@ -191,7 +192,7 @@ async function refreshDigitalCatalog({ now = Date.now() } = {}) {
   await applyCinemetaPosters(metas);
 
   const snapshot = {
-    version: 4,
+    version: 5,
     generatedAt: new Date(now).toISOString(),
     metas,
   };

@@ -17,7 +17,6 @@ Set these production variables:
 ```dotenv
 UPSTASH_REDIS_REST_URL=https://<db>.upstash.io
 UPSTASH_REDIS_REST_TOKEN=<token>
-DIGITAL_CATALOG_REFRESH_KEY=<separate-long-random-secret>
 # Optional: number of 100-title candidate pages examined each refresh (1-50).
 DIGITAL_CATALOG_SCAN_PAGES=10
 ```

@@ -19,8 +19,9 @@ Set these production variables:
 ```dotenv
 UPSTASH_REDIS_REST_URL=https://<db>.upstash.io
 UPSTASH_REDIS_REST_TOKEN=<token>
-# Optional: number of 100-title candidate pages examined each refresh (1-50).
-DIGITAL_CATALOG_SCAN_PAGES=10
+# Optional: number of 100-title candidate pages examined each refresh (1-19,
+# default 19 = everything JustWatch returns; it stops serving results past ~1900).
+DIGITAL_CATALOG_SCAN_PAGES=19
 ```
 
 Like the original catalogs, this one has no fixed-time scheduler. The first Nuvio/Stremio request after four hours starts a background rebuild and is served the stored snapshot immediately; only the very first build (no snapshot yet) is awaited. A failed rebuild keeps the previous snapshot and is not retried for 10 minutes.

@@ -14,7 +14,7 @@ test("manifest exposes the fixed Italian digital movie snapshot", () => {
   assert.deepEqual(manifest.catalogs[0], {
     type: "movie",
     id: "jw_digital_it",
-    name: "Nuovi film in digitale",
+    name: "Novità in digitale 4k dal cinema",
     extra: [{ name: "skip", isRequired: false }],
   });
 });

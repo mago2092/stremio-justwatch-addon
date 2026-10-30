@@ -4,9 +4,9 @@ Discover where to watch movies and series on your favourite streaming platforms,
 
 ## Features
 
-### Nuovi film in digitale (Italia)
+### Novità in digitale 4k dal cinema (Italia)
 
-Every manifest configured for **Italy** exposes the movie catalog **Nuovi film in digitale**. It is a single, Italy-only snapshot for Nuvio/Stremio, covering only active subscription (`FLATRATE`) and paid (`RENT`, `BUY`) offers. Free (`FREE`) and ad-supported (`ADS`) offers are excluded. An offer counts only when JustWatch lists Italian (`it`) among its `audioLanguages`: Italian subtitles alone are not enough, and offers with no audio data are skipped.
+Every manifest configured for **Italy** exposes the movie catalog **Novità in digitale 4k dal cinema**. It is a single, Italy-only snapshot for Nuvio/Stremio, covering only active subscription (`FLATRATE`) and paid (`RENT`, `BUY`) offers. Free (`FREE`) and ad-supported (`ADS`) offers are excluded. An offer counts only when JustWatch lists Italian (`it`) among its `audioLanguages`: Italian subtitles alone are not enough, and offers with no audio data are skipped.
 
 Only films that **played in Italian cinemas** are listed: each candidate is checked against TMDb's Italian release calendar (theatrical release types 2/3; festival premieres do not count). Streaming-only films are left out. The digital arrival date is TMDb's Italian digital date when available, otherwise the JustWatch offer date; a digital date earlier than the cinema release is not trusted and the film is skipped. Films also need at least 1000 IMDb votes (`DIGITAL_CATALOG_MIN_IMDB_VOTES`), since a single local screening is enough to appear as a cinema release on TMDb. Posters come from Cinemeta (metahub) so they match the rest of Nuvio/Stremio. `TMDB_API_KEY` is required for this catalogue (a free key from themoviedb.org/settings/api).
 

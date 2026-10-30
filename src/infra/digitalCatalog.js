@@ -18,8 +18,17 @@ function maxPages() {
   return Number.isFinite(configured) ? Math.min(Math.max(configured, 1), 50) : 10;
 }
 
+// The offer must carry Italian audio. Italian subtitles alone do not count,
+// and an offer with no audio data is treated as not Italian.
+function hasItalianAudio(offer) {
+  return (offer?.audioLanguages || []).some(
+    (lang) => typeof lang === "string" && /^it(-|$)/i.test(lang),
+  );
+}
+
 function isActiveOffer(offer, now) {
   if (!DIGITAL_TYPES.has(offer?.monetizationType)) return false;
+  if (!hasItalianAudio(offer)) return false;
   const starts = Date.parse(offer.availableFromTime);
   if (!Number.isFinite(starts) || starts > now) return false;
   const ends = offer.availableToTime ? Date.parse(offer.availableToTime) : NaN;
@@ -113,6 +122,7 @@ async function serveDigitalCatalog(offset) {
 }
 
 module.exports = {
+  hasItalianAudio,
   SNAPSHOT_KEY,
   firstDigitalAvailability,
   snapshotIsFresh,

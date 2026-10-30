@@ -45,8 +45,8 @@ describe("digital catalogue", () => {
       content: { originalReleaseDate: "1999-01-01" },
       offers: [
         { monetizationType: "CINEMA", availableFromTime: "2026-10-01T00:00:00Z" },
-        { monetizationType: "RENT", availableFromTime: "2026-10-29T09:00:00Z" },
-        { monetizationType: "FLATRATE", availableFromTime: "2026-10-28T00:00:00Z" },
+        { monetizationType: "RENT", availableFromTime: "2026-10-29T09:00:00Z", audioLanguages: ["it"] },
+        { monetizationType: "FLATRATE", availableFromTime: "2026-10-28T00:00:00Z", audioLanguages: ["en", "it"] },
       ],
     };
     assert.equal(firstDigitalAvailability(node, now), Date.parse("2026-10-28T00:00:00Z"));
@@ -69,18 +69,37 @@ describe("digital catalogue", () => {
     const now = Date.parse("2026-10-30T12:00:00Z");
     const freeOnly = {
       offers: [
-        { monetizationType: "FREE", availableFromTime: "2026-10-29T00:00:00Z" },
-        { monetizationType: "ADS", availableFromTime: "2026-10-29T00:00:00Z" },
+        { monetizationType: "FREE", availableFromTime: "2026-10-29T00:00:00Z", audioLanguages: ["it"] },
+        { monetizationType: "ADS", availableFromTime: "2026-10-29T00:00:00Z", audioLanguages: ["it"] },
       ],
     };
     assert.equal(firstDigitalAvailability(freeOnly, now), null);
     const mixed = {
       offers: [
-        { monetizationType: "ADS", availableFromTime: "2026-10-29T00:00:00Z" },
-        { monetizationType: "BUY", availableFromTime: "2026-10-20T00:00:00Z" },
+        { monetizationType: "ADS", availableFromTime: "2026-10-29T00:00:00Z", audioLanguages: ["it"] },
+        { monetizationType: "BUY", availableFromTime: "2026-10-20T00:00:00Z", audioLanguages: ["it"] },
       ],
     };
     assert.equal(firstDigitalAvailability(mixed, now), Date.parse("2026-10-20T00:00:00Z"));
+  });
+
+  test("counts only offers with Italian audio, not Italian subtitles", () => {
+    const now = Date.parse("2026-10-30T12:00:00Z");
+    const subsOnly = {
+      offers: [
+        { monetizationType: "FLATRATE", availableFromTime: "2026-10-05T00:00:00Z", audioLanguages: ["en"], subtitleLanguages: ["it"] },
+        { monetizationType: "RENT", availableFromTime: "2026-10-05T00:00:00Z", audioLanguages: [] },
+        { monetizationType: "BUY", availableFromTime: "2026-10-05T00:00:00Z" },
+      ],
+    };
+    assert.equal(firstDigitalAvailability(subsOnly, now), null);
+    const dubbedLater = {
+      offers: [
+        { monetizationType: "RENT", availableFromTime: "2026-09-01T00:00:00Z", audioLanguages: ["en"] },
+        { monetizationType: "FLATRATE", availableFromTime: "2026-10-15T00:00:00Z", audioLanguages: ["en", "it"] },
+      ],
+    };
+    assert.equal(firstDigitalAvailability(dubbedLater, now), Date.parse("2026-10-15T00:00:00Z"));
   });
 
   test("uses the original four-hour lazy refresh window", () => {

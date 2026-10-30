@@ -8,8 +8,9 @@ const tmdbReleases = require("./tmdbReleases");
 
 // Bump the version whenever the inclusion rules change, so a snapshot built
 // under the old rules is never served (v2: paid only + Italian audio;
-// v3: also requires an Italian cinema release on TMDb).
-const SNAPSHOT_KEY = "digital-catalog:IT:movies:v3";
+// v3: also requires an Italian cinema release on TMDb;
+// v4: minimum IMDb votes + Cinemeta-style posters).
+const SNAPSHOT_KEY = "digital-catalog:IT:movies:v4";
 const DAY_MS = 24 * 3600 * 1000;
 // After a failed refresh, wait before trying again instead of retrying on
 // every single catalogue request while JustWatch/TMDb are unhappy.
@@ -18,6 +19,54 @@ const PAGE_SIZE = 50;
 // Only subscription (FLATRATE) and paid (RENT, BUY) offers. Free and
 // ad-supported offers are deliberately excluded from this catalogue.
 const DIGITAL_TYPES = new Set(["FLATRATE", "RENT", "BUY"]);
+
+// TMDb's release calendar is user-edited: a single local screening is enough
+// for a small film to show up as a "cinema release". A minimum number of IMDb
+// votes keeps the catalogue to films with a real cinema run.
+function minImdbVotes() {
+  const configured = Number.parseInt(process.env.DIGITAL_CATALOG_MIN_IMDB_VOTES, 10);
+  return Number.isFinite(configured) && configured >= 0 ? configured : 1000;
+}
+
+function hasEnoughVotes(node, minimum = minImdbVotes()) {
+  const votes = Number(node?.content?.scoring?.imdbVotes);
+  return Number.isFinite(votes) && votes >= minimum;
+}
+
+// Same poster source Cinemeta uses, so this catalogue looks like the rest of
+// Nuvio/Stremio instead of carrying JustWatch's own artwork.
+function cinemetaPoster(imdbId) {
+  return `https://images.metahub.space/poster/medium/${imdbId}/img`;
+}
+
+// Metahub has no poster for some very recent titles (404). Check once per
+// snapshot build and keep JustWatch's poster when it is missing.
+async function posterExists(url) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 5_000);
+  try {
+    const res = await fetch(url, { method: "HEAD", redirect: "follow", signal: controller.signal });
+    return res.ok;
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function applyCinemetaPosters(metas, check = posterExists) {
+  let next = 0;
+  async function worker() {
+    while (next < metas.length) {
+      const meta = metas[next++];
+      if (!/^tt\d+$/.test(meta.id)) continue;
+      const url = cinemetaPoster(meta.id);
+      if (await check(url)) meta.poster = url;
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(8, metas.length) }, worker));
+  return metas;
+}
 
 function maxPages() {
   const configured = Number.parseInt(process.env.DIGITAL_CATALOG_SCAN_PAGES, 10);
@@ -111,7 +160,7 @@ async function refreshDigitalCatalog({ now = Date.now() } = {}) {
       jwDigital: firstDigitalAvailability(node, now),
       tmdbId: node?.content?.externalIds?.tmdbId || null,
     }))
-    .filter((entry) => entry.jwDigital !== null && entry.tmdbId);
+    .filter((entry) => entry.jwDigital !== null && entry.tmdbId && hasEnoughVotes(entry.node));
 
   const releases = await tmdbReleases.getItalianReleasesMany(withOffers.map((e) => e.tmdbId));
   const dated = withOffers
@@ -135,9 +184,10 @@ async function refreshDigitalCatalog({ now = Date.now() } = {}) {
     metas.push(result.meta);
   }
   if (!metas.length) throw new Error("No Italian cinema releases with a qualifying digital offer");
+  await applyCinemetaPosters(metas);
 
   const snapshot = {
-    version: 3,
+    version: 4,
     generatedAt: new Date(now).toISOString(),
     metas,
   };
@@ -187,6 +237,9 @@ function _resetRefreshStateForTests() {
 }
 
 module.exports = {
+  hasEnoughVotes,
+  cinemetaPoster,
+  applyCinemetaPosters,
   digitalArrival,
   _resetRefreshStateForTests,
   hasItalianAudio,

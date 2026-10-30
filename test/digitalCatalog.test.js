@@ -35,6 +35,9 @@ const {
   snapshotIsFresh,
   serveDigitalCatalog,
   digitalArrival,
+  hasEnoughVotes,
+  cinemetaPoster,
+  applyCinemetaPosters,
   _resetRefreshStateForTests,
 } = require("../src/infra/digitalCatalog");
 const { summarizeReleases } = require("../src/infra/tmdbReleases");
@@ -156,6 +159,27 @@ describe("digital catalogue", () => {
       digitalArrival({ jwDigital: Date.parse("2026-02-01T00:00:00Z"), releases: { theatrical, digital: null }, now }),
       null,
     );
+  });
+
+  test("requires a minimum number of IMDb votes", () => {
+    assert.equal(hasEnoughVotes({ content: { scoring: { imdbVotes: 999 } } }, 1000), false);
+    assert.equal(hasEnoughVotes({ content: { scoring: { imdbVotes: 1000 } } }, 1000), true);
+    assert.equal(hasEnoughVotes({ content: { scoring: { imdbVotes: null } } }, 1000), false);
+    assert.equal(hasEnoughVotes({ content: {} }, 1000), false);
+  });
+
+  test("uses Cinemeta's poster for the IMDb id", () => {
+    assert.equal(cinemetaPoster("tt0111161"), "https://images.metahub.space/poster/medium/tt0111161/img");
+  });
+
+  test("keeps JustWatch's poster when Cinemeta has none", async () => {
+    const metas = [
+      { id: "tt1", poster: "jw1" },
+      { id: "tt2", poster: "jw2" },
+    ];
+    await applyCinemetaPosters(metas, async (url) => url.includes("/tt1/"));
+    assert.equal(metas[0].poster, cinemetaPoster("tt1"));
+    assert.equal(metas[1].poster, "jw2");
   });
 
   test("uses the original four-hour lazy refresh window", () => {

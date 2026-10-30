@@ -72,7 +72,7 @@ const GET_DIGITAL_MOVIES_QUERY = `
   ) {
     popularTitles(
       country: $country
-      filter: { objectTypes: [MOVIE], monetizationTypes: [FLATRATE, RENT, BUY, FREE, ADS] }
+      filter: { objectTypes: [MOVIE], monetizationTypes: [FLATRATE, RENT, BUY] }
       first: $first
       sortBy: RELEASE_YEAR
       sortRandomSeed: 0

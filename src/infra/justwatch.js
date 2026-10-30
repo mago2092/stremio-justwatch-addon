@@ -86,7 +86,7 @@ const GET_DIGITAL_MOVIES_QUERY = `
             shortDescription
             originalReleaseDate
             genres { shortName }
-            externalIds { imdbId }
+            externalIds { imdbId tmdbId }
             posterUrl(profile: S718, format: JPG)
           }
           offers(country: $country, platform: WEB) {

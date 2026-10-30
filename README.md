@@ -4,6 +4,26 @@ Discover where to watch movies and series on your favourite streaming platforms,
 
 ## Features
 
+### Nuovi film in digitale (Italia)
+
+Every manifest configured for **Italy** exposes the movie catalog **Nuovi film in digitale**. It is a single, Italy-only snapshot for Nuvio/Stremio, covering active `FLATRATE`, `RENT`, `BUY`, `FREE`, and `ADS` offers.
+
+The refresh ranks films only by JustWatch's offer-level `availableFromTime` field. `originalReleaseDate` is not used: it is an original/theatrical release date and is not a safe replacement for a digital-offer date. Films with no active, dated qualifying offer are left out rather than guessed.
+
+The newest successful snapshot is stored permanently in Upstash Redis and is the only data served to catalog requests. A refresh writes Redis only after the complete replacement has been built, so an upstream, mapping, or Redis failure leaves the last valid snapshot available.
+
+Set these production variables:
+
+```dotenv
+UPSTASH_REDIS_REST_URL=https://<db>.upstash.io
+UPSTASH_REDIS_REST_TOKEN=<token>
+DIGITAL_CATALOG_REFRESH_KEY=<separate-long-random-secret>
+# Optional: number of 100-title candidate pages examined each refresh (1-50).
+DIGITAL_CATALOG_SCAN_PAGES=10
+```
+
+Like the original catalogs, this one has no fixed-time scheduler. The first Nuvio/Stremio request after four hours refreshes the snapshot; requests inside that window receive the stored data. If the lazy refresh fails, the previous valid snapshot stays available.
+
 - **Per-provider catalogs** — one catalog per selected platform (Netflix, Disney+, Prime Video, …), plus an opt-in **Global** catalog (Popular/Trending/New across every platform in your country, not just the ones you picked)
 - **Multi-country catalogs** — each catalog's id carries its own country + language, so a single install can serve several countries at once. Handy in front-ends like [AIOStreams](https://github.com/Viren070/AIOStreams) that let you mix catalogs from different addons/countries side by side
 - **Three sort orders** — Popular, Trending and New, selectable independently per platform and for Global

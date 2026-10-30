@@ -70,11 +70,21 @@ class L2 {
   async set(key, data, ttl_s) {
     if (this._redis) {
       try {
-        await this._redis.set(key, data, { ex: ttl_s });
+        // A missing expiry intentionally means "persistent".  The digital
+        // catalogue uses this for its last known-good snapshot: expiring it
+        // would turn a transient JustWatch failure into an empty catalogue.
+        const options = Number.isFinite(ttl_s) ? { ex: ttl_s } : undefined;
+        await this._redis.set(key, data, options);
+        return true;
       } catch (err) {
         console.error("[cache] Redis SET error:", err.message);
       }
     }
+    return false;
+  }
+
+  isConfigured() {
+    return Boolean(this._redis);
   }
 
   async invalidate(key) {

@@ -10,6 +10,7 @@ const { nodeToMetaWithFallback } = require("./meta");
 const { getOfficialNetflixTrending } = require("./netflixTrending");
 const { seedFromString, seededShuffle, seedWindow } = require("./random");
 const { TTL_S } = require("../ttl");
+const { serveDigitalCatalog } = require("../infra/digitalCatalog");
 
 const NETFLIX_PACKAGE = "nfx";
 
@@ -150,6 +151,12 @@ async function handleCatalog({ type, id, extra }, config) {
 
   // We only serve catalogs — search is handled by Cinemeta, not this addon
   if (search !== undefined) return null;
+
+  // A deliberately fixed, Italy-only snapshot. It never performs a live
+  // JustWatch lookup while serving Nuvio/Stremio.
+  if (id === "jw_digital_it" && type === "movie") {
+    return serveDigitalCatalog(Math.max(0, parseInt(skip, 10) || 0));
+  }
 
   // Improved batching: fetch both the batch containing skip and the next batch, then merge and deduplicate
   let offset = Math.max(0, parseInt(skip, 10) || 0);

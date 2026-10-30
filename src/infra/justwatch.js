@@ -60,6 +60,46 @@ const GET_POPULAR_TITLES_QUERY = `
   }
 `;
 
+// Dedicated query for the persisted Italian "new digital movies" catalogue.
+// Offers are country-specific and include their own availability timestamp;
+// do not confuse it with content.originalReleaseDate.
+const GET_DIGITAL_MOVIES_QUERY = `
+  query GetDigitalMovies(
+    $country: Country!
+    $first: Int! = 100
+    $offset: Int = 0
+    $language: Language!
+  ) {
+    popularTitles(
+      country: $country
+      filter: { objectTypes: [MOVIE], monetizationTypes: [FLATRATE, RENT, BUY, FREE, ADS] }
+      first: $first
+      sortBy: RELEASE_YEAR
+      sortRandomSeed: 0
+      offset: $offset
+    ) {
+      edges {
+        node {
+          objectType
+          content(country: $country, language: $language) {
+            title
+            shortDescription
+            originalReleaseDate
+            genres { shortName }
+            externalIds { imdbId }
+            posterUrl(profile: S718, format: JPG)
+          }
+          offers(country: $country, platform: WEB) {
+            monetizationType
+            availableFromTime
+            availableToTime
+          }
+        }
+      }
+    }
+  }
+`;
+
 // Same shape as GET_POPULAR_TITLES_QUERY, plus one extra field: `original`
 // aliases a second `content` lookup pinned to English, alongside the
 // caller's own localized one. Used only for matching Netflix's official
@@ -591,6 +631,29 @@ async function fetchSearchNodes({
 }
 
 /**
+ * Fetch a bounded candidate set for the daily Italian snapshot. This bypasses
+ * the normal short-lived browse cache: the caller persists only a fully-built,
+ * valid snapshot and must preserve the previous one on failure.
+ */
+async function fetchDigitalMovieCandidates({ pages = 10 } = {}) {
+  const count = Math.min(Math.max(Number.parseInt(pages, 10) || 1, 1), 50);
+  const nodes = [];
+  for (let page = 0; page < count; page++) {
+    const data = await gql(GET_DIGITAL_MOVIES_QUERY, {
+      country: "IT",
+      language: "it",
+      first: BLOCK_SIZE,
+      offset: page * BLOCK_SIZE,
+      platform: "WEB",
+    });
+    const batch = (data?.popularTitles?.edges || []).map((edge) => edge?.node).filter(Boolean);
+    nodes.push(...batch);
+    if (batch.length < BLOCK_SIZE) break;
+  }
+  return nodes;
+}
+
+/**
  * Same as searchTitles(), but each node also carries `original.title` — its
  * English title alongside the localized one — for matching a title against
  * an English-only source (see GET_POPULAR_TITLES_WITH_ORIGINAL_QUERY above).
@@ -699,6 +762,7 @@ module.exports = {
   searchTitles,
   searchTitlesWithOriginal,
   getPackages,
+  fetchDigitalMovieCandidates,
   // Handed to warmCache.start() in index.js so the warmer can replay queries.
   _warmRefetch,
   // Exported for tests and for anyone wanting to inspect/reset upstream state.

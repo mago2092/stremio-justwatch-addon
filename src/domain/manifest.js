@@ -142,6 +142,17 @@ function buildManifest(config, encodedConfig, pkgInfoMap, addonBaseUrl) {
 
   const catalogs = [];
 
+  // This fixed snapshot is meaningful only for an Italian installation; it is
+  // deliberately not injected into other countries' manifests.
+  if (country === "IT") {
+    catalogs.push({
+      type: "movie",
+      id: "jw_digital_it",
+      name: "Nuovi film in digitale",
+      extra: [{ name: "skip", isRequired: false }],
+    });
+  }
+
   // Global catalogs are listed before any provider's, regardless of the
   // order packages were selected in — Array#sort is stable, so this only
   // moves GLOBAL_PACKAGE_ID to the front without reshuffling the rest.

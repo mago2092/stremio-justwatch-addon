@@ -5,7 +5,9 @@ const { fetchDigitalMovieCandidates } = require("./justwatch");
 const { nodeToMetaWithFallback } = require("../domain/meta");
 const { TTL_S } = require("../ttl");
 
-const SNAPSHOT_KEY = "digital-catalog:IT:movies:v1";
+// Bump the version whenever the inclusion rules change, so a snapshot built
+// under the old rules is never served (v2: paid only + Italian audio).
+const SNAPSHOT_KEY = "digital-catalog:IT:movies:v2";
 const PAGE_SIZE = 50;
 // Only subscription (FLATRATE) and paid (RENT, BUY) offers. Free and
 // ad-supported offers are deliberately excluded from this catalogue.

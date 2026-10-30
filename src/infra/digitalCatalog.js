@@ -68,11 +68,15 @@ async function applyCinemetaPosters(metas, check = posterExists) {
   return metas;
 }
 
+const MAX_SCAN_PAGES = 19;
+
 function maxPages() {
   const configured = Number.parseInt(process.env.DIGITAL_CATALOG_SCAN_PAGES, 10);
-  // This is deliberately bounded: an accidental environment value must not
-  // turn the nightly job into an unbounded scrape of JustWatch.
-  return Number.isFinite(configured) ? Math.min(Math.max(configured, 1), 50) : 10;
+  // JustWatch returns nothing past ~1900 results (offset 1900+ comes back
+  // empty, measured 2026-10-30), so 19 pages is the whole reachable list and
+  // also the default. Higher values are clamped: they would only add empty
+  // requests.
+  return Number.isFinite(configured) ? Math.min(Math.max(configured, 1), MAX_SCAN_PAGES) : MAX_SCAN_PAGES;
 }
 
 // The offer must carry Italian audio. Italian subtitles alone do not count,

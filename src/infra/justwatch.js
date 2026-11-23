@@ -94,6 +94,7 @@ const GET_DIGITAL_MOVIES_QUERY = `
             monetizationType
             availableFromTime
             availableToTime
+            dateCreated
             audioLanguages
           }
         }

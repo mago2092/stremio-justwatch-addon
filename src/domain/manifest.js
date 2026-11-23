@@ -148,7 +148,7 @@ function buildManifest(config, encodedConfig, pkgInfoMap, addonBaseUrl) {
     catalogs.push({
       type: "movie",
       id: "jw_digital_it",
-      name: "Novità in digitale 4k dal cinema",
+      name: "Novità in digitale dal cinema",
       extra: [{ name: "skip", isRequired: false }],
     });
     catalogs.push({

@@ -7,18 +7,20 @@ const { TTL_S } = require("../ttl");
 const { hasItalianAudio, hasEnoughVotes, applyCinemetaPosters } = require("./digitalCatalog");
 
 // "Novità dalle piattaforme streaming" (Italy): movies of any year that were
-// just added to a subscription platform, newest addition first. Built from
+// just added to a subscription platform, most popular in Italy first. Built from
 // JustWatch's day-by-day "Novità" list, so it is independent of release year.
 
 // Bump when the inclusion rules change, so an old snapshot is never served.
-const SNAPSHOT_KEY = "platform-catalog:IT:movies:v1";
-const DAY_KEY_PREFIX = "platform-catalog:IT:day:v1:";
+// v2: ordered by JustWatch's Italian popularity rank.
+const SNAPSHOT_KEY = "platform-catalog:IT:movies:v2";
+const DAY_KEY_PREFIX = "platform-catalog:IT:day:v2:";
 const PAGE_SIZE = 50;
 const DAY_MS = 24 * 3600 * 1000;
 const RETRY_AFTER_FAILURE_MS = 10 * 60 * 1000;
-// Past days hardly change once over; keep them a week so a 4-hourly rebuild
-// only re-asks JustWatch about today and yesterday.
-const PAST_DAY_TTL_S = 7 * 24 * 3600;
+// A past day's list of additions no longer changes, but the popularity rank
+// stored with it does. A day is a fair trade: each 4-hourly rebuild re-reads
+// only today and yesterday, and ranks are at most a day old.
+const PAST_DAY_TTL_S = 24 * 3600;
 
 function windowDays() {
   const configured = Number.parseInt(process.env.PLATFORM_CATALOG_DAYS, 10);
@@ -49,8 +51,10 @@ function isoDay(time) {
 // Keep only what nodeToMeta needs, so a day stays small in Redis.
 function slim(entry) {
   const { node, newOffer } = entry;
+  const rank = Number(node?.popularityRank?.rank);
   return {
     platform: newOffer?.package?.clearName || null,
+    rank: Number.isFinite(rank) && rank > 0 ? rank : null,
     node: {
       objectType: node.objectType,
       content: {
@@ -78,8 +82,7 @@ async function getDay(day, { today }) {
 
 /**
  * Merge days (newest first) into one list. A film added to two platforms
- * keeps only its most recent addition. Within a day JustWatch's own order
- * (its popularity ranking) is kept. Pure, so it is tested directly.
+ * appears once, at its most recent addition. Pure, so it is tested directly.
  */
 function mergeDays(days) {
   const seen = new Set();
@@ -95,6 +98,19 @@ function mergeDays(days) {
   return merged;
 }
 
+/**
+ * Most popular in Italy first (JustWatch rank 1 is the most popular). Films
+ * without a rank go last; ties and unranked films keep the newest-addition
+ * order mergeDays produced (Array#sort is stable). Pure, so it is tested.
+ */
+function sortByPopularity(entries) {
+  return [...entries].sort((a, b) => {
+    const ra = a.rank ?? Infinity;
+    const rb = b.rank ?? Infinity;
+    return ra === rb ? 0 : ra < rb ? -1 : 1;
+  });
+}
+
 async function refreshPlatformCatalog({ now = Date.now() } = {}) {
   if (!L2Cache.isConfigured()) {
     throw new Error("UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN are required for the platform catalogue snapshot");
@@ -105,13 +121,13 @@ async function refreshPlatformCatalog({ now = Date.now() } = {}) {
     const day = isoDay(now - back * DAY_MS);
     days.push({ day, entries: await getDay(day, { today }) });
   }
-  const metas = mergeDays(days)
+  const metas = sortByPopularity(mergeDays(days))
     .map((entry) => nodeToMeta(entry.node, "it", { country: "IT", language: "it" }))
     .filter((meta) => meta?.id);
   if (!metas.length) throw new Error("JustWatch returned no qualifying platform additions");
   await applyCinemetaPosters(metas);
 
-  const snapshot = { version: 1, generatedAt: new Date(now).toISOString(), metas };
+  const snapshot = { version: 2, generatedAt: new Date(now).toISOString(), metas };
   const stored = await L2Cache.set(SNAPSHOT_KEY, snapshot);
   if (!stored) throw new Error("Could not persist platform catalogue snapshot to Redis");
   await L1Cache.set(SNAPSHOT_KEY, snapshot, 300);
@@ -165,6 +181,7 @@ module.exports = {
   SNAPSHOT_KEY,
   qualifies,
   mergeDays,
+  sortByPopularity,
   refreshPlatformCatalog,
   servePlatformCatalog,
 };

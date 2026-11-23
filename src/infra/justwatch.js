@@ -654,6 +654,9 @@ const GET_NEW_PLATFORM_MOVIES_QUERY = `
           package { clearName }
         }
         node {
+          ... on Movie {
+            popularityRank(country: IT) { rank }
+          }
           ... on MovieOrShow {
             objectType
             content(country: IT, language: "it") {

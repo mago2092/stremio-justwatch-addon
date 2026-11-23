@@ -11,6 +11,7 @@ const { getOfficialNetflixTrending } = require("./netflixTrending");
 const { seedFromString, seededShuffle, seedWindow } = require("./random");
 const { TTL_S } = require("../ttl");
 const { serveDigitalCatalog } = require("../infra/digitalCatalog");
+const { servePlatformCatalog } = require("../infra/platformCatalog");
 
 const NETFLIX_PACKAGE = "nfx";
 
@@ -156,6 +157,11 @@ async function handleCatalog({ type, id, extra }, config) {
   // JustWatch lookup while serving Nuvio/Stremio.
   if (id === "jw_digital_it" && type === "movie") {
     return serveDigitalCatalog(Math.max(0, parseInt(skip, 10) || 0));
+  }
+
+  // Italy-only snapshot of movies just added to subscription platforms.
+  if (id === "jw_platform_new_it" && type === "movie") {
+    return servePlatformCatalog(Math.max(0, parseInt(skip, 10) || 0));
   }
 
   // Improved batching: fetch both the batch containing skip and the next batch, then merge and deduplicate

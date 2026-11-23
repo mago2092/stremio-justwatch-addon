@@ -151,6 +151,12 @@ function buildManifest(config, encodedConfig, pkgInfoMap, addonBaseUrl) {
       name: "Novità in digitale 4k dal cinema",
       extra: [{ name: "skip", isRequired: false }],
     });
+    catalogs.push({
+      type: "movie",
+      id: "jw_platform_new_it",
+      name: "Novità dalle piattaforme streaming",
+      extra: [{ name: "skip", isRequired: false }],
+    });
   }
 
   // Global catalogs are listed before any provider's, regardless of the

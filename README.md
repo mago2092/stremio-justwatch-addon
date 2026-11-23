@@ -26,6 +26,10 @@ DIGITAL_CATALOG_SCAN_PAGES=19
 
 Like the original catalogs, this one has no fixed-time scheduler. The first Nuvio/Stremio request after four hours starts a background rebuild and is served the stored snapshot immediately; only the very first build (no snapshot yet) is awaited. A failed rebuild keeps the previous snapshot and is not retried for 10 minutes.
 
+### Novità dalle piattaforme streaming (Italia)
+
+Every manifest configured for **Italy** also exposes **Novità dalle piattaforme streaming**: movies of any release year that were just added to a subscription (`FLATRATE`) platform in Italy, newest addition first. It is built from JustWatch's day-by-day "Novità" list over the last 30 days (`PLATFORM_CATALOG_DAYS`, 1-90). A film added to several platforms appears once, at its latest addition. Films need at least 1000 IMDb votes and Italian audio; since Netflix, NOW and HBO Max do not publish audio languages, an addition with no audio data counts when the film has Italian audio on another Italian offer. Past days are cached in Redis for a week, so each 4-hour rebuild only re-reads today and yesterday.
+
 - **Per-provider catalogs** — one catalog per selected platform (Netflix, Disney+, Prime Video, …), plus an opt-in **Global** catalog (Popular/Trending/New across every platform in your country, not just the ones you picked)
 - **Multi-country catalogs** — each catalog's id carries its own country + language, so a single install can serve several countries at once. Handy in front-ends like [AIOStreams](https://github.com/Viren070/AIOStreams) that let you mix catalogs from different addons/countries side by side
 - **Three sort orders** — Popular, Trending and New, selectable independently per platform and for Global

@@ -18,3 +18,18 @@ test("manifest exposes the fixed Italian digital movie snapshot", () => {
     extra: [{ name: "skip", isRequired: false }],
   });
 });
+
+test("manifest exposes the Italian platform-additions catalogue right after it", () => {
+  const manifest = buildManifest(
+    { country: "IT", language: "it", packages: [], sorts: [] },
+    "config",
+    {},
+    "https://addon.example",
+  );
+  assert.deepEqual(manifest.catalogs[1], {
+    type: "movie",
+    id: "jw_platform_new_it",
+    name: "Novità dalle piattaforme streaming",
+    extra: [{ name: "skip", isRequired: false }],
+  });
+});

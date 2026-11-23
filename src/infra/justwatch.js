@@ -633,6 +633,69 @@ async function fetchSearchNodes({
     .filter(Boolean);
 }
 
+// JustWatch's "Novità" list: titles that appeared on a subscription platform
+// in Italy on one given day, with the offer that was added (newOffer).
+const GET_NEW_PLATFORM_MOVIES_QUERY = `
+  query GetNewPlatformMovies($date: Date!, $after: String, $first: Int!) {
+    newTitles(
+      country: IT
+      date: $date
+      filter: { objectTypes: [MOVIE], monetizationTypes: [FLATRATE] }
+      first: $first
+      after: $after
+      priceDrops: false
+      pageType: NEW
+    ) {
+      pageInfo { endCursor hasNextPage }
+      edges {
+        newOffer(platform: WEB) {
+          monetizationType
+          audioLanguages
+          package { clearName }
+        }
+        node {
+          ... on MovieOrShow {
+            objectType
+            content(country: IT, language: "it") {
+              title
+              shortDescription
+              genres { shortName }
+              externalIds { imdbId }
+              scoring { imdbVotes }
+              posterUrl(profile: S718, format: JPG)
+            }
+            offers(country: IT, platform: WEB) {
+              monetizationType
+              audioLanguages
+            }
+          }
+        }
+      }
+    }
+  }
+`;
+
+/**
+ * Every movie JustWatch lists as newly added to a subscription platform in
+ * Italy on `date` (YYYY-MM-DD). Bounded: a day that is a bulk import of a
+ * whole new platform can hold hundreds of titles, so at most 20 pages.
+ * Returns [{ newOffer, node }].
+ */
+async function fetchNewPlatformMovies(date) {
+  const entries = [];
+  let after = null;
+  for (let page = 0; page < 20; page++) {
+    const data = await gql(GET_NEW_PLATFORM_MOVIES_QUERY, { date, after, first: BLOCK_SIZE });
+    const connection = data?.newTitles;
+    for (const edge of connection?.edges || []) {
+      if (edge?.node && edge?.newOffer) entries.push({ newOffer: edge.newOffer, node: edge.node });
+    }
+    if (!connection?.pageInfo?.hasNextPage) break;
+    after = connection.pageInfo.endCursor;
+  }
+  return entries;
+}
+
 /**
  * Fetch a bounded candidate set for the daily Italian snapshot. This bypasses
  * the normal short-lived browse cache: the caller persists only a fully-built,
@@ -766,6 +829,7 @@ module.exports = {
   searchTitlesWithOriginal,
   getPackages,
   fetchDigitalMovieCandidates,
+  fetchNewPlatformMovies,
   // Handed to warmCache.start() in index.js so the warmer can replay queries.
   _warmRefetch,
   // Exported for tests and for anyone wanting to inspect/reset upstream state.

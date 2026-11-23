@@ -10,8 +10,9 @@ const tmdbReleases = require("./tmdbReleases");
 // under the old rules is never served (v2: paid only + Italian audio;
 // v3: also requires an Italian cinema release on TMDb;
 // v4: minimum IMDb votes + Cinemeta-style posters;
-// v5: scan all 19 JustWatch pages).
-const SNAPSHOT_KEY = "digital-catalog:IT:movies:v5";
+// v5: scan all 19 JustWatch pages;
+// v6: order by when the offer really appeared in Italy, via dateCreated).
+const SNAPSHOT_KEY = "digital-catalog:IT:movies:v6";
 const DAY_MS = 24 * 3600 * 1000;
 // After a failed refresh, wait before trying again instead of retrying on
 // every single catalogue request while JustWatch/TMDb are unhappy.
@@ -88,25 +89,44 @@ function hasItalianAudio(offer) {
   );
 }
 
+/**
+ * When an offer really became available in Italy.
+ *
+ * availableFromTime alone is not reliable: Apple TV lists films for pre-order
+ * on their cinema release day, so its availableFromTime is the theatrical date
+ * even though the film only became watchable weeks later. dateCreated is when
+ * JustWatch first saw the offer in Italy, which matches the real digital
+ * arrival. An availableFromTime later than dateCreated is a scheduled start,
+ * so the later of the two wins. Offers with neither date are ignored.
+ */
+function offerArrival(offer) {
+  const created = Date.parse(offer?.dateCreated);
+  const from = Date.parse(offer?.availableFromTime);
+  if (!Number.isFinite(created) && !Number.isFinite(from)) return null;
+  if (!Number.isFinite(created)) return from;
+  if (!Number.isFinite(from)) return created;
+  return Math.max(created, from);
+}
+
 function isActiveOffer(offer, now) {
   if (!DIGITAL_TYPES.has(offer?.monetizationType)) return false;
   if (!hasItalianAudio(offer)) return false;
-  const starts = Date.parse(offer.availableFromTime);
-  if (!Number.isFinite(starts) || starts > now) return false;
+  const starts = offerArrival(offer);
+  if (starts === null || starts > now) return false;
   const ends = offer.availableToTime ? Date.parse(offer.availableToTime) : NaN;
   return !Number.isFinite(ends) || ends > now;
 }
 
 /**
- * JustWatch's Offer.availableFromTime is an offer-level digital availability
- * timestamp.  It is intentionally the *only* date considered here: the
- * title's originalReleaseDate is its theatrical/original release and must
- * never be used as a fallback for this catalogue.
+ * The date a film first became watchable in Italy with Italian audio, on a
+ * subscription or paid offer: the earliest offerArrival among its active
+ * qualifying offers. The title's originalReleaseDate is its cinema release
+ * and is never used here.
  */
 function firstDigitalAvailability(node, now = Date.now()) {
   const dates = (node?.offers || [])
     .filter((offer) => isActiveOffer(offer, now))
-    .map((offer) => Date.parse(offer.availableFromTime))
+    .map(offerArrival)
     .filter(Number.isFinite);
   return dates.length ? Math.min(...dates) : null;
 }
@@ -140,18 +160,20 @@ async function persistSnapshot(snapshot) {
  * arrived in digital in Italy. Pure, so it is tested directly.
  *
  * - It must have played in Italian cinemas (TMDb theatrical release in IT).
- * - The digital date is TMDb's Italian digital date when known, otherwise the
- *   earliest qualifying JustWatch offer (paid/subscription, Italian audio).
- * - A digital date before the cinema release (a pre-order listing, or a
- *   mismatched record) is not trusted and the film is left out.
+ * - The digital date is the earliest qualifying JustWatch offer
+ *   (paid/subscription, Italian audio), dated by offerArrival().
+ * - A digital date before the cinema release (a mismatched record) is not
+ *   trusted and the film is left out.
  */
 function digitalArrival({ jwDigital, releases, now = Date.now() }) {
   if (jwDigital === null || !releases) return null;
-  const { theatrical, digital } = releases;
+  const { theatrical } = releases;
   if (!Number.isFinite(theatrical) || theatrical > now) return null;
-  const arrival = Number.isFinite(digital) && digital <= now ? Math.max(digital, jwDigital) : jwDigital;
-  if (arrival < theatrical - DAY_MS) return null;
-  return arrival;
+  // TMDb is used only to confirm the cinema release. Its Italian digital
+  // dates are user-entered and often missing or wrong, so the order comes
+  // from JustWatch's offer dates alone.
+  if (jwDigital < theatrical - DAY_MS) return null;
+  return jwDigital;
 }
 
 async function refreshDigitalCatalog({ now = Date.now() } = {}) {
@@ -192,7 +214,7 @@ async function refreshDigitalCatalog({ now = Date.now() } = {}) {
   await applyCinemetaPosters(metas);
 
   const snapshot = {
-    version: 5,
+    version: 6,
     generatedAt: new Date(now).toISOString(),
     metas,
   };
@@ -242,6 +264,7 @@ function _resetRefreshStateForTests() {
 }
 
 module.exports = {
+  offerArrival,
   hasEnoughVotes,
   cinemetaPoster,
   applyCinemetaPosters,

@@ -146,15 +146,30 @@ describe("digital catalogue", () => {
     );
   });
 
-  test("prefers TMDb's Italian digital date and distrusts digital dates before the cinema release", () => {
+  test("dates films by when the offer really appeared, not Apple's pre-order date", () => {
+    const now = Date.parse("2026-11-23T12:00:00Z");
+    // Apple lists the film on its cinema day (availableFromTime) but it only
+    // became watchable when JustWatch first saw the offer (dateCreated).
+    const node = {
+      offers: [
+        { monetizationType: "RENT", availableFromTime: "2026-07-29T07:00:00Z", dateCreated: "2026-10-06", audioLanguages: ["it"] },
+        // Rakuten has no availableFromTime: dateCreated alone dates it.
+        { monetizationType: "RENT", availableFromTime: null, dateCreated: "2026-10-08", audioLanguages: ["it"] },
+        // Scheduled offer: created before it starts, so the start date wins.
+        { monetizationType: "BUY", availableFromTime: "2026-11-02T23:00:00Z", dateCreated: "2026-10-30", audioLanguages: ["it"] },
+      ],
+    };
+    assert.equal(firstDigitalAvailability(node, now), Date.parse("2026-10-06"));
+  });
+
+  test("ignores TMDb's digital date and distrusts digital dates before the cinema release", () => {
     const now = Date.parse("2026-10-30T12:00:00Z");
     const theatrical = Date.parse("2026-04-01T00:00:00Z");
-    // JustWatch listed it on the cinema date (pre-order); TMDb knows the real digital date.
+    const jwDigital = Date.parse("2026-05-20T00:00:00Z");
     assert.equal(
-      digitalArrival({ jwDigital: theatrical, releases: { theatrical, digital: Date.parse("2026-05-20T00:00:00Z") }, now }),
-      Date.parse("2026-05-20T00:00:00Z"),
+      digitalArrival({ jwDigital, releases: { theatrical, digital: Date.parse("2026-09-01T00:00:00Z") }, now }),
+      jwDigital,
     );
-    // A digital offer weeks before the cinema release is not trusted.
     assert.equal(
       digitalArrival({ jwDigital: Date.parse("2026-02-01T00:00:00Z"), releases: { theatrical, digital: null }, now }),
       null,

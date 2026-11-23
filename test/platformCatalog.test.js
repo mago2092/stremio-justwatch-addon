@@ -2,7 +2,7 @@
 
 const assert = require("node:assert/strict");
 const { test, describe } = require("node:test");
-const { qualifies, mergeDays } = require("../src/infra/platformCatalog");
+const { qualifies, mergeDays, sortByPopularity } = require("../src/infra/platformCatalog");
 
 function entry({ id = "tt1", votes = 5000, newAudio = ["it"], otherAudio = [], type = "FLATRATE" } = {}) {
   return {
@@ -40,5 +40,11 @@ describe("platform additions catalogue", () => {
       { day: "2026-11-22", entries: [slim("tt3"), slim("tt2")] },
     ]);
     assert.deepEqual(merged.map((e) => e.node.content.externalIds.imdbId), ["tt2", "tt1", "tt3"]);
+  });
+
+  test("orders by Italian popularity, unranked films last in newest-addition order", () => {
+    const e = (id, rank) => ({ rank, node: { content: { externalIds: { imdbId: id } } } });
+    const sorted = sortByPopularity([e("new", null), e("a", 300), e("b", 12), e("old", null), e("c", 12)]);
+    assert.deepEqual(sorted.map((x) => x.node.content.externalIds.imdbId), ["b", "c", "a", "new", "old"]);
   });
 });
